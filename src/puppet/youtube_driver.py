@@ -77,9 +77,20 @@ class YouTubeDriver():
     async def _get_recs(self, n_recs) -> list[Video]:
         thumbs = await self._page.locator("a.ytLockupMetadataViewModelTitle").all()
         urls = [await x.get_attribute("href") for x in thumbs]
-        ids = [re.search(r"/watch\?v=([a-zA-Z0-9_-]{11})", x).group(1) for x in urls] # extract ids
+        ids = []
+
+        for url in urls:
+            if not url:
+                continue
+            
+            match = re.search(r"/watch\?v=([a-zA-Z0-9_-]{11})", url)
+            if match:
+                ids.append(match.group(1))
+            else:
+                self.logger.debug(f"Ignored non-standard recommendation URL: {url}")
+
         recs = [Video(id) for id in ids]
-        self.logger.debug(f"Video IDs found on video page: {recs}")
+        self.logger.debug(f"Video IDs found on video page: {[rec.id for rec in recs]}")
         return recs[:n_recs]  
 
 
