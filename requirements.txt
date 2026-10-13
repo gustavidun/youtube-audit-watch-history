@@ -115,3 +115,4 @@ xxhash==3.6.0
 yarl==1.21.0
 youtube-comment-downloader==0.1.78
 youtube-transcript-api==1.2.2
+polars
