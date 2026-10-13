@@ -2,6 +2,7 @@ import polars as pl
 
 from config import WATCH_HISTORY_PATH
 from logger import setup_logger
+from models import Video
 
 logger = setup_logger("Database")
 
@@ -17,4 +18,5 @@ def get_participant_vids(p_id : str, n = 500):
         .sort("time", descending=True)
         .head(n)
     )
-    return pipe.collect()["video_id"].to_list()
+    ids = pipe.collect()["video_id"].to_list()
+    return [Video(id=_id) for _id in ids]
