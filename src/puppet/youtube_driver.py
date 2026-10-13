@@ -98,9 +98,9 @@ class YouTubeDriver():
     async def _screenshot(self):
         if self.logger.level == logging.DEBUG:
             error_time = int(time.time())
-            screenshot_path = LOG_DIR / f"error_screenshot_{self.ID}_{error_time}.png"
+            screenshot_path = LOG_DIR / f"error_screenshot_{self.logger.name}_{error_time}.png"
             await self._page.screenshot(path=str(screenshot_path))
-            self.logger.info(f"Saved error state screenshot to {screenshot_path}")
+            self.logger.debug(f"Saved error state screenshot to {screenshot_path}")
 
     async def get_homepage_recs(self, n_recs = 8):
         assert self._page
