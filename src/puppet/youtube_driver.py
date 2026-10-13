@@ -135,9 +135,9 @@ class YouTubeDriver():
         # check for title element
         try:
             title_elem = self._page.locator("h1.ytd-watch-metadata yt-formatted-string")
-            self._page.wait_for_function(
+            await self._page.wait_for_function(
                 "el => el.getAttribute('title') && el.getAttribute('title').length > 0",
-                arg=title_elem,
+                arg=await title_elem.element_handle(),
                 timeout=5000
             )
         except PWTimeoutError:
