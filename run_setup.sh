@@ -1,5 +1,4 @@
-cd SockPuppetTest
-cd YouTube-Algorithm-Audit
+cd youtube-audit-watch-history
 source .venv/bin/activate
 git pull
 pip install -r requirements.txt
