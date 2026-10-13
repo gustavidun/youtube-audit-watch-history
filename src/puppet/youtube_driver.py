@@ -60,22 +60,33 @@ class YouTubeDriver():
 
     async def consent_check(self):
         assert self._page
+
+        consent_btn = self._page.locator(
+            'button[aria-label*="Accept the use of cookies"], '
+        ).first
         
-        try:
-            await self._page.wait_for_selector('button[aria-label*="Accept the use of cookies"]', timeout=3000)
-            self.logger.info("Accepting cookies via JavaScript...")
-            
-            await self._page.evaluate('''() => {
-                const btn = document.querySelector('button[aria-label*="Accept the use of cookies"]');
-                if (btn) btn.click();
-            }''')
-            
-            await asyncio.sleep(2)
-            
-        except (PWTimeoutError, PWError):
-            self.logger.debug("No cookie popup detected or element vanished.")
-        except Exception as e:
-            self.logger.debug(f"Other cookie error in consent check: {e}")
+        for attempt in range(3):
+            try:
+                await consent_btn.wait_for(state="attached", timeout=3000)
+                self.logger.info(f"Accepting cookies (trusted attempt {attempt + 1})...")
+                
+                await consent_btn.hover()
+                await self._page.wait_for_timeout(400) 
+                
+                await consent_btn.click(delay=150)
+                
+                await asyncio.sleep(2)
+                return
+                
+            except PWTimeoutError:
+                if attempt == 0:
+                    self.logger.debug("No cookie popup detected.")
+                    return
+            except PWError:
+                self.logger.debug("Button detached during click. Retrying...")
+                await asyncio.sleep(0.5)
+                
+        self.logger.debug("Failed to clear consent popup after 3 attempts.")
 
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(PWError))
