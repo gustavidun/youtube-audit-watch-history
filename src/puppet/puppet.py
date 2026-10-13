@@ -6,7 +6,6 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .youtube_driver import YouTubeDriver, VideoUnavailableException, PlaybackException
 import config
-import classifier
 from logger import setup_logger
 from dataclasses import replace
 
@@ -48,47 +47,10 @@ class YTPuppet():
             "logger": self.logger
         }
 
-    async def _get_closest_slant(self, recs : list[Video]):
-        return min(
-            recs,
-            key=lambda rec: abs(rec.slant - self.cur_slant) if rec.slant is not None else float("inf")
-        )
-
-    async def _get_slants(self, recs : list[Video]):
-        # filter out already seen videos
-        vid_hist = [w for w in self.history if w.source == "video"] # filter out homepage watches
-        rec_old = recs
-        recs = [rec for rec in recs if rec.id not in [w.video.id for w in vid_hist]]
-
-        self.logger.info(f"Filtered out {len(rec_old) - len(recs)} videos.")
-        if len(recs) == 0:
-            raise ValueError("No valid videos")
-
-        fetch = get_videos_by_id([rec.id for rec in recs])
-        db_map = {v.id: v for v in fetch}
-        missing = [r for r in recs if r.id not in db_map] # not in db
-        match = [db_map[r.id] for r in recs if r.id in db_map and db_map[r.id].slant is not None] # in db with slant
-        missing_slant = [db_map[r.id] for r in recs if r.id in db_map and db_map[r.id].slant is None] # in db but no slant
-
-        if missing: 
-            # fill nans with metadata and slant prediction
-            missing = await get_videos_metadata(missing)
-            missing = classifier.filter_english(missing)
-
-            # insert missing videos in db without slant
-            insert_videos([replace(m,slant=None) for m in missing])
-
-        missing_preds = classifier.predict(missing + missing_slant)
-
-        return match + missing_preds
-
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
-    async def _get_homepage_recs(self, driver : YouTubeDriver, depth, get_slants=False):
+    async def _get_homepage_recs(self, driver : YouTubeDriver, depth):
         recs, topics = await driver.get_homepage_recs()
-
-        if get_slants:
-            recs = await self._get_slants(recs)
 
         self.history.append(
             Watch(
@@ -121,10 +83,6 @@ class YTPuppet():
         except Exception as e:
             error_log.append(e)
             raise
-
-        if get_slants:
-            try: recs = await self._get_slants(recs)
-            except ValueError: recs = await self._get_homepage_recs(driver, depth)  # sample from homepage if no valid videos
 
         try: 
             wt = await driver.wait_wt(self.wt)
@@ -175,25 +133,6 @@ class YTPuppet():
                 await self._get_homepage_recs(driver, i + 1)
 
 
-    async def drift(self, driver : YouTubeDriver, homepage_freq = 5):
-        self.cur_state = "drifting"
-        recs = await self._get_homepage_recs(driver, 0)
-        next_vid = await self._get_closest_slant(recs) if self.utility else recs[0]
-
-        for i in range(1, self.drift_depth + 1):
-            self.cur_slant += (self.target_slant - self.init_slant) / self.drift_depth # drift term
-
-            try:
-                watch = await self._watch(driver, next_vid, i, get_slants=True)
-                recs = watch.recs
-            except: 
-                recs = await self._get_homepage_recs(driver, 0)
-
-            if i % homepage_freq == 0:
-                recs = await self._get_homepage_recs(driver, i + 1)
-
-            next_vid = await self._get_closest_slant(recs) if self.utility else recs[0]
-
     async def serialize(self):
         rows = [
             {
@@ -226,9 +165,6 @@ class YTPuppet():
 
             self.logger.info("Initialising training...")
             await self.train(driver)
-
-            self.logger.info("Initialising drifting...")
-            await self.drift(driver)
 
             self.logger.info("Finished run. Saving...")
             df = await self.serialize()
