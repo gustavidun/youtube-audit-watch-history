@@ -81,6 +81,7 @@ class YouTubeDriver():
 
         for url in urls:
             if not url:
+                self.logger.debug(f"No recommendations on page.")
                 continue
             
             match = re.search(r"/watch\?v=([a-zA-Z0-9_-]{11})", url)
