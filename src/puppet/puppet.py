@@ -126,8 +126,7 @@ class YTPuppet():
         self.logger.debug(f"VIDEOS AVAILABLE: {len(train_vids)}")
 
         for i, vid in enumerate(train_vids):
-            try: await self._watch(driver, vid, i + 1, get_slants=False)
-            except: continue
+            await self._watch(driver, vid, i + 1, get_slants=False)
             if i % homepage_freq == 0:
                 await self._get_homepage_recs(driver, i + 1)
 
