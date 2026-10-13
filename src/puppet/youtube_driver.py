@@ -5,9 +5,10 @@ from pathlib import Path
 import re 
 import asyncio
 import logging
-from collections import deque
+import time
 
 from models import Video 
+from config import LOG_DIR
 
 class VideoUnavailableException(Exception):
     def __str__(self):
@@ -94,6 +95,12 @@ class YouTubeDriver():
         self.logger.debug(f"Video IDs found on video page: {[rec.id for rec in recs]}")
         return recs[:n_recs]  
 
+    async def _screenshot(self):
+        if self.logger.level == logging.DEBUG:
+            error_time = int(time.time())
+            screenshot_path = LOG_DIR / f"error_screenshot_{self.ID}_{error_time}.png"
+            await self._page.screenshot(path=str(screenshot_path))
+            self.logger.info(f"Saved error state screenshot to {screenshot_path}")
 
     async def get_homepage_recs(self, n_recs = 8):
         assert self._page
@@ -130,6 +137,7 @@ class YouTubeDriver():
         # check for video errors
         error = self._page.locator("yt-player-error-message-renderer")
         if await error.count() > 0:
+            await self._screenshot()
             raise VideoUnavailableException()
 
         # check for title element
@@ -141,6 +149,7 @@ class YouTubeDriver():
                 timeout=5000
             )
         except PWTimeoutError:
+            await self._screenshot()
             raise VideoUnavailableException()
 
         title = await title_elem.get_attribute("title")
@@ -194,6 +203,7 @@ class YouTubeDriver():
         try:
             wt = await asyncio.wait_for(self._page.evaluate(WATCH_JS, arg=time), timeout=60)
         except Exception as e:
+            await self._screenshot()
             raise PlaybackException
         
         self.logger.debug(f"Playback time: {wt}")
