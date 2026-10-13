@@ -78,13 +78,14 @@ class YTPuppet():
         except VideoUnavailableException as e:
             error_log.append(e)
             self.logger.info(f"Video {vid.id} unavailable.")
-            raise
+            recs=[]
         except Exception as e:
             error_log.append(e)
             raise
 
-        try: 
-            wt = await driver.wait_wt(self.wt)
+        try:
+            if VideoUnavailableException not in error_log: 
+                wt = await driver.wait_wt(self.wt)
         except PlaybackException as e:
             error_log.append(e)
             self.logger.info(f"Can't play video {vid.id}.")
