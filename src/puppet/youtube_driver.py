@@ -61,15 +61,23 @@ class YouTubeDriver():
     async def consent_check(self):
         assert self._page
 
-        consent_btn = self._page.locator('button[aria-label*="Accept the use of cookies"]').first
+        consent_btn = self._page.locator(
+            'button[aria-label*="Accept the use of cookies"], '
+            'button:has-text("Accept all"), '
+            'button:has-text("Accepter alle"), '
+        ).first
         
         try:
-            await consent_btn.wait_for(state="visible", timeout=3000)
+            await consent_btn.wait_for(state="attached", timeout=3000)
             self.logger.info("Accepting cookies...")
-            await consent_btn.click()
+            
+            await consent_btn.click(force=True)
             await asyncio.sleep(2)
-        except PWTimeoutError:
-            self.logger.debug("No cookie popup detected.")
+            
+        except (PWTimeoutError, PWError):
+            self.logger.debug("No cookie popup detected or element vanished.")
+        except Exception as e:
+            self.logger.debug(f"Other error in consent check: {e}")
 
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(PWError))
