@@ -67,7 +67,6 @@ class YouTubeDriver():
             self.logger.info("Accepting cookies...")
             await consent_btn.press("Enter")
             await asyncio.sleep(1)
-            await self._page.reload()
 
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(PWError))
@@ -140,17 +139,25 @@ class YouTubeDriver():
             await self._screenshot()
             raise VideoUnavailableException()
 
-        # check for title element
-        try:
-            title_elem = self._page.locator("h1.ytd-watch-metadata yt-formatted-string")
-            await self._page.wait_for_function(
-                "el => el.getAttribute('title') && el.getAttribute('title').length > 0",
-                arg=await title_elem.element_handle(),
-                timeout=5000
-            )
-        except PWTimeoutError:
-            await self._screenshot()
-            raise VideoUnavailableException()
+        # fetch title to see if video is available
+        title_elem = self._page.locator("h1.ytd-watch-metadata yt-formatted-string")
+        for attempt in range(2):
+            try:
+                await self._page.wait_for_function(
+                    "el => el && el.getAttribute('title') && el.getAttribute('title').length > 0",
+                    arg=await title_elem.element_handle(),
+                    timeout=3000
+                )
+                break
+            
+            except PWTimeoutError:
+                if attempt == 0:
+                    # sometimes the video doesnt load properly due to cookie banner not being accepted
+                    await self.consent_check()
+                else:
+                    # second failure: popup wasn't the issue, video is dead
+                    await self._screenshot()
+                    raise VideoUnavailableException()
 
         title = await title_elem.get_attribute("title")
         vid.title = title
