@@ -2,7 +2,8 @@ import asyncio
 import argparse
 
 from puppet import YTPuppet
-import shortuuid
+from data_fetcher import get_participant_ids
+
 import random
 import logging
 
@@ -11,7 +12,6 @@ parser.add_argument("--n", type=int, default=45)
 parser.add_argument("--train", type=int, default=100)
 parser.add_argument("--drift", type=int, default=200)
 parser.add_argument("--headless", type=bool, default=True)
-parser.add_argument("--random", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--debug", action=argparse.BooleanOptionalAction, default=False)
 args = parser.parse_args()
 
@@ -19,11 +19,7 @@ N = args.n
 TRAIN = args.train
 DRIFT = args.drift
 HEADLESS = args.headless
-RANDOM = args.random
 LOGGER = args.debug
-
-if not RANDOM: SLANTS = [(-1, 0), (-1, 1), (0, 1), (0, -1), (1, 0), (1,-1), (-1,-1), (0,0), (1,1), (-99,-99)] #-99 = random 
-else: SLANTS = [(-99,-99)]
 
 crashes = 0
 
@@ -38,30 +34,19 @@ async def safe_run(puppet : YTPuppet):
 
 async def main():
 
-    if N % len(SLANTS) != 0:
-        raise Exception("SLANTS length must be divisible with N")
-
-    k = N // len(SLANTS)
-    partitions = SLANTS * k
-
     puppets = []
-    for i, s in enumerate(partitions):
-        if s[0] == -99:
-            num = random.uniform(-1,1)
-            s = (num, num)
+    ids = get_participant_ids(N)
 
-        if RANDOM:
-            util = True if (i+1)%2 == 0 else False
-
+    for i in range(N):
         puppets.append(
             YTPuppet(
-                f"p-{shortuuid.uuid()}",
-                slant=s[0],
-                target_slant=s[1],
+                ids[i],
+                slant=0,
+                target_slant=0,
                 train_depth=TRAIN,
                 drift_depth=DRIFT,
                 headless=HEADLESS,
-                utility=util,
+                utility=False,
                 logger_level=logging.DEBUG if LOGGER else logging.INFO
             )
         )

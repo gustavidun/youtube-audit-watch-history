@@ -13,6 +13,7 @@ MAX_API_ERRORS : int = 5
 
 DB_DIR = ROOT / "data" / "db"
 DB_PATH = DB_DIR / "db.sqlite"
+WATCH_HISTORY_PATH = ROOT / "data" / "watch_histories" / "video_histories_filtered.parquet"
 
 SESSION_DIR = ROOT / "data" / "session"
 LOG_DIR = ROOT / "data" / "logs"

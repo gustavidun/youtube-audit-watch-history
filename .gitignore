@@ -12,4 +12,5 @@ data/slant/slants_train.csv
 data/slant/slants_train.pkl
 data/slant/human_labels
 data/models/
+data/watch_histories/
 .vscode/

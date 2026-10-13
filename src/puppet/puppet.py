@@ -10,7 +10,7 @@ import classifier
 from logger import setup_logger
 from dataclasses import replace
 
-from data_fetcher import get_videos_by_id, get_videos, get_videos_metadata, scrape_comments, insert_videos
+from data_fetcher import get_videos_by_id, get_videos, get_videos_metadata, scrape_comments, insert_videos, get_participant_vids
 from models import Watch, Video
 
 PuppetState = Literal["init", "training", "drifting", "closed"]
@@ -84,10 +84,11 @@ class YTPuppet():
 
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
-    async def _get_homepage_recs(self, driver : YouTubeDriver, depth):
+    async def _get_homepage_recs(self, driver : YouTubeDriver, depth, get_slants=False):
         recs, topics = await driver.get_homepage_recs()
 
-        recs = await self._get_slants(recs)
+        if get_slants:
+            recs = await self._get_slants(recs)
 
         self.history.append(
             Watch(
@@ -155,14 +156,13 @@ class YTPuppet():
         return watch
 
 
-    async def train(self, driver : YouTubeDriver):
+    async def train(self, driver : YouTubeDriver, homepage_freq=10):
         self.cur_state = "training"
 
         self.logger.info(f"Fetching train videos in slant range: {self.slant_range}")
-        train_vids = get_videos(
-            slant_range=self.slant_range,
-            n=self.train_depth,
-            train=True
+        train_vids = get_participant_vids(
+            p_id=self.id,
+            n=self.train_depth
         )
 
         self.logger.debug(f"TRAIN DEPTH: {self.train_depth}")
@@ -171,6 +171,8 @@ class YTPuppet():
         for i, vid in enumerate(train_vids):
             try: await self._watch(driver, vid, i + 1, get_slants=False)
             except: continue
+            if i % homepage_freq == 0:
+                await self._get_homepage_recs(driver, i + 1)
 
 
     async def drift(self, driver : YouTubeDriver, homepage_freq = 5):
