@@ -118,7 +118,7 @@ class YTPuppet():
 
         self.logger.info(f"Fetching train videos in slant range: {self.slant_range}")
         train_vids = get_participant_vids(
-            p_id=self.id,
+            p_id=self.ID,
             n=self.train_depth
         )
 
