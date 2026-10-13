@@ -117,7 +117,6 @@ class YTPuppet():
     async def train(self, driver : YouTubeDriver, homepage_freq=10):
         self.cur_state = "training"
 
-        self.logger.info(f"Fetching train videos in slant range: {self.slant_range}")
         train_vids = get_participant_vids(
             p_id=self.ID,
             n=self.train_depth
