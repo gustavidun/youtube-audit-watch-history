@@ -7,9 +7,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from .youtube_driver import YouTubeDriver, VideoUnavailableException, PlaybackException
 import config
 from logger import setup_logger
-from dataclasses import replace
 
-from data_fetcher import get_videos_by_id, get_videos, get_videos_metadata, scrape_comments, insert_videos, get_participant_vids
+from data_fetcher import get_participant_vids
 from models import Watch, Video
 
 PuppetState = Literal["init", "training", "drifting", "closed"]
