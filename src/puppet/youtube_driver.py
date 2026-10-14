@@ -105,6 +105,8 @@ class YouTubeDriver():
 
         recs = [Video(id) for id in ids]
         self.logger.debug(f"Video IDs found on video page: {[rec.id for rec in recs]}")
+        if len(recs) == 0:
+            await self._screenshot()
         return recs[:n_recs]  
 
     async def _screenshot(self):
