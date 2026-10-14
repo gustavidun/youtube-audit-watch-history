@@ -159,7 +159,6 @@ class YTPuppet():
         self.logger.info(f"Running sock-puppet, {self.ID} – Utility: {self.utility}, Slant: {self.target_slant}")
 
         async with self.driver(**self.driver_args) as driver:
-            await driver.consent_check()
 
             self.logger.info("Initialising training...")
             await self.train(driver)
