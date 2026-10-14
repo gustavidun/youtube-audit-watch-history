@@ -88,7 +88,12 @@ class YouTubeDriver():
 
 
     async def _get_recs(self, n_recs) -> list[Video]:
-        thumbs = await self._page.locator("a.ytLockupMetadataViewModelTitle").all()
+        rec_locator = self._page.locator("a.ytLockupMetadataViewModelTitle")
+        try:
+            await rec_locator.first.wait_for(state="attached", timeout=8000)
+        except PWTimeoutError:
+            self.logger.debug("Timed out waiting for recommendation elements.")
+        thumbs = await rec_locator.all()
         urls = [await x.get_attribute("href") for x in thumbs]
         ids = []
 
