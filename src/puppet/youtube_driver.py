@@ -48,6 +48,8 @@ class YouTubeDriver():
         await self._page.goto("https://www.youtube.com")
         self.logger.info("Succesfully launched chrome.")
 
+        await self._register_consent_handler()
+
         return self
 
 
@@ -58,35 +60,26 @@ class YouTubeDriver():
             if self._playwright: await self._playwright.stop()
 
 
-    async def consent_check(self):
+    async def _register_consent_handler(self):
+        """Register a persistent locator handler that auto-dismisses the
+        Google/YouTube cookie consent banner whenever it appears."""
         assert self._page
 
-        consent_btn = self._page.locator(
-            'button[aria-label*="Accept the use of cookies"], '
+        consent_locator = self._page.locator(
+            'button[aria-label*="Accept the use of cookies"]'
         ).first
-        
-        for attempt in range(3):
+
+        async def _handle_consent(locator):
+            self.logger.info("Consent banner detected — accepting cookies...")
             try:
-                await consent_btn.wait_for(state="attached", timeout=3000)
-                self.logger.info(f"Accepting cookies (trusted attempt {attempt + 1})...")
-                
-                await consent_btn.hover()
-                await self._page.wait_for_timeout(400) 
-                
-                await consent_btn.click(delay=150)
-                
-                await asyncio.sleep(2)
-                return
-                
-            except PWTimeoutError:
-                if attempt == 0:
-                    self.logger.debug("No cookie popup detected.")
-                    return
-            except PWError:
-                self.logger.debug("Button detached during click. Retrying...")
-                await asyncio.sleep(0.5)
-                
-        self.logger.debug("Failed to clear consent popup after 3 attempts.")
+                await locator.hover()
+                await self._page.wait_for_timeout(300)
+                await locator.click(delay=120)
+                self.logger.info("Cookies accepted.")
+            except PWError as e:
+                self.logger.debug(f"Consent click failed: {e}")
+
+        await self._page.add_locator_handler(consent_locator, _handle_consent)
 
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(PWError))
@@ -161,23 +154,15 @@ class YouTubeDriver():
 
         # fetch title to see if video is available
         title_elem = self._page.locator("h1.ytd-watch-metadata yt-formatted-string")
-        for attempt in range(2):
-            try:
-                await self._page.wait_for_function(
-                    "el => el && el.getAttribute('title') && el.getAttribute('title').length > 0",
-                    arg=await title_elem.element_handle(),
-                    timeout=3000
-                )
-                break
-            
-            except PWTimeoutError:
-                if attempt == 0:
-                    # sometimes the video doesnt load properly due to cookie banner not being accepted
-                    await self.consent_check()
-                else:
-                    # second failure: popup wasn't the issue, video is dead
-                    await self._screenshot()
-                    raise VideoUnavailableException()
+        try:
+            await self._page.wait_for_function(
+                "el => el && el.getAttribute('title') && el.getAttribute('title').length > 0",
+                arg=await title_elem.element_handle(),
+                timeout=3000
+            )
+        except PWTimeoutError:
+            await self._screenshot()
+            raise VideoUnavailableException()
 
         title = await title_elem.get_attribute("title")
         vid.title = title
