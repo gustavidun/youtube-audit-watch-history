@@ -1,7 +1,6 @@
 import logging
 from typing import Literal
 import pandas as pd
-import asyncio
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .youtube_driver import YouTubeDriver, VideoUnavailableException, PlaybackException
@@ -70,7 +69,7 @@ class YTPuppet():
         return recs
 
 
-    async def _watch(self, driver : YouTubeDriver, vid : Video, depth, get_slants : bool) -> Watch:
+    async def _watch(self, driver : YouTubeDriver, vid : Video, depth) -> Watch:
         error_log = []
 
         try:
@@ -126,9 +125,12 @@ class YTPuppet():
         self.logger.debug(f"VIDEOS AVAILABLE: {len(train_vids)}")
 
         for i, vid in enumerate(train_vids):
-            await self._watch(driver, vid, i + 1, get_slants=False)
+            await self._watch(driver, vid, i + 1)
             if i % homepage_freq == 0:
                 await self._get_homepage_recs(driver, i + 1)
+        if i == self.train_depth - 1:
+            for j in range(100):
+                await self._get_homepage_recs(driver, i + 1) # sample homepage 100 times
 
 
     async def serialize(self):
